@@ -1,16 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:todoapp/database_helper.dart';
 import 'package:todoapp/models/task.dart';
+import 'package:todoapp/models/todo.dart';
+import 'package:todoapp/screens/homepage.dart';
 import 'package:todoapp/widgets.dart';
 
 class TaskPage extends StatefulWidget {
-  const TaskPage({Key? key}) : super(key: key);
+  final Task? task;
+
+  const TaskPage({Key? key, @required this.task}) : super(key: key);
 
   @override
   _TaskPageState createState() => _TaskPageState();
 }
 
 class _TaskPageState extends State<TaskPage> {
+  int? _taskId = 0;
+  String? _taskTitle = "";
+  DatabaseHelper _dbHelper = DatabaseHelper();
+
+  @override
+  void initState() {
+    print('ID ${widget.task?.id}');
+    if (widget.task != null) {
+      _taskTitle = widget.task?.title;
+      _taskId = widget.task?.id;
+    }
+
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,12 +59,17 @@ class _TaskPageState extends State<TaskPage> {
                         onSubmitted: (value) async {
                           print(value);
                           if (value != "") {
-                            DatabaseHelper _dbHelper = DatabaseHelper();
-                            Task _newTask = Task(title: value);
-                            await _dbHelper.insertTask(_newTask);
-                            print('new task has been created');
+                            if (widget.task == null) {
+                              Task _newTask = Task(title: value);
+                              await _dbHelper.insertTask(_newTask);
+                              print('new task has been created');
+                            } else {
+                              print('Update the exisition task');
+                            }
                           }
                         },
+                        controller: TextEditingController()
+                          ..text = _taskTitle.toString(),
                         decoration: InputDecoration(
                             hintText: "Enter task title",
                             border: InputBorder.none),
@@ -63,21 +87,65 @@ class _TaskPageState extends State<TaskPage> {
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 24)),
                 ),
-                TodoWidget(
-                  text: 'Create your first Task',
-                  isDone: false,
+                FutureBuilder(
+                  initialData: [],
+                  future: _dbHelper.getTodo(_taskId),
+                  builder: (context, AsyncSnapshot<List> snapshot) {
+                    return Expanded(
+                        child: ListView.builder(
+                            itemCount: snapshot.data?.length,
+                            itemBuilder: (context, index) {
+                              return GestureDetector(
+                                onTap: () {
+                                  //sex
+                                  print('hello');
+                                },
+                                child: TodoWidget(
+                                  text: snapshot.data?[index].title,
+                                  isDone: false,
+                                ),
+                              );
+                            }));
+                  },
                 ),
-                TodoWidget(
-                  text: 'Create your first Todo as well',
-                  isDone: false,
-                ),
-                TodoWidget(
-                  text: 'just another task',
-                  isDone: true,
-                ),
-                TodoWidget(
-                  isDone: true,
-                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        margin: EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: Color(0xFF86829D), width: 1.5)),
+                        child: Image(
+                            image: AssetImage('assets/images/check_icon.png')),
+                      ),
+                      Expanded(
+                          child: TextField(
+                        onSubmitted: ((value) async {
+                          if (value != "") {
+                            if (widget.task != null) {
+                              DatabaseHelper _dbHelper = DatabaseHelper();
+                              Todo _newTodo = Todo(
+                                  title: value, isDone: 0, taskId: _taskId);
+                              await _dbHelper.insertTodo(_newTodo);
+                              print(_newTodo.taskId);
+                            } else {
+                              print('Task does not exist');
+                            }
+                          }
+                        }),
+                        decoration: InputDecoration(
+                            hintText: "Enter Todo item...",
+                            border: InputBorder.none),
+                      ))
+                    ],
+                  ),
+                )
               ],
             ),
             Positioned(
@@ -85,10 +153,7 @@ class _TaskPageState extends State<TaskPage> {
                 right: 24,
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => TaskPage()),
-                    );
+                    Navigator.pop(context);
                   },
                   child: Container(
                     width: 60,
